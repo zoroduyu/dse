@@ -1,0 +1,42 @@
+server:
+  port: 8889
+  tomcat:
+    uri-encoding: UTF-8
+    
+logging: 
+  config: classpath:logback.xml
+
+mybatis:
+  mapper-locations: classpath:mybatis/mapper/*.xml
+  config-location: classpath:mybatis/mybatis-config.xml
+
+spring:
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+  datasource: 
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://192.168.109.121:3306/oms_seo_index_syn?characterEncoding=utf-8
+    username: root
+    password: SHINIANhou:2020
+    platform: mysql
+    type: com.alibaba.druid.pool.DruidDataSource
+  application:
+    name: dse
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+contentType:
+  dir: indexs
+  
+  
+netty: 
+  syned: true
+  port: 8890
+  ips: 192.168.109.121,192.168.109.120,192.168.109.3
+

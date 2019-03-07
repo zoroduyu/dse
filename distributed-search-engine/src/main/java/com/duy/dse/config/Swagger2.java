@@ -2,7 +2,6 @@ package com.duy.dse.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import springfox.documentation.builders.ApiInfoBuilder;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
@@ -31,17 +30,17 @@ public class Swagger2 {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.tydic.oms.rsc.controller"))
+                .apis(RequestHandlerSelectors.basePackage("com.duy.dse.controller"))
                 .paths(PathSelectors.any())
                 .build();
     }
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("OMS资源管理系统")
-                .description("OMS资源管理模块接口文档")
+                .title("dse分布式索引系统")
+                .description("dse分布式索引系统接口文档")
                 .version("1.0")
-                .contact(new Contact("李俊毅、杜语、裴浩、舒靖凌", null, null))
+                .contact(new Contact("杜语", null, null))
                 .build();
     }
 }

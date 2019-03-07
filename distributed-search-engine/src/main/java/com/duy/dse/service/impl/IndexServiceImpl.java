@@ -2,8 +2,12 @@ package com.duy.dse.service.impl;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.lucene.document.Document;
@@ -14,6 +18,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -28,21 +33,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.duy.dse.config.NettyConfig;
 import com.duy.dse.constant.ConfigConstant;
 import com.duy.dse.core.WriterAndDirManager;
 import com.duy.dse.entity.IndexDirEntity;
-import com.duy.dse.entity.IndexEntity;
 import com.duy.dse.exception.BusinessException;
 import com.duy.dse.query.IndexQuery;
 import com.duy.dse.query.IndexSearchQuery;
 import com.duy.dse.service.IndexService;
 import com.duy.dse.service.RecoveryIndexService;
 import com.duy.dse.service.SendIndexService;
+import com.duy.dse.util.StringUtils;
 
 /**
  * 资源相关接口实现
@@ -75,12 +79,11 @@ public class IndexServiceImpl implements IndexService {
 	 * @author duyu
 	 * @see IndexService#addOrUpdateIndex(String, String, List)
 	 */
-	@Transactional(propagation = Propagation.REQUIRED)
 	@Override
 	public void addOrUpdateIndex(IndexQuery maintainIndexQuery, boolean syn) throws IOException {
 		String msg = JSON.toJSONString(maintainIndexQuery);
 		// 如果要进行索引同步
-		if (syn) {
+		if (syn && nettyConfig.isSyned()) {
 			// 如果确认发起事务失败，则抛出异常。如果下面写入索引抛出异常或者服务器宕机，commit接口需要保证能进行事务回滚
 			if (!recoveryIndexService.commit(nettyConfig.getIps(), msg)) {
 				throw new BusinessException("确认同步事务失败!");
@@ -89,7 +92,7 @@ public class IndexServiceImpl implements IndexService {
 
 		// 得到资源路径
 		String path = this.getPathByContentType(maintainIndexQuery.getContentType().toUpperCase());
-		List<IndexEntity> indexs = maintainIndexQuery.getIndexs();
+		List<JSONObject> indexs = maintainIndexQuery.getIndexs();
 		// 根据操作的不同，进入调用不同的方法
 		switch (maintainIndexQuery.getMalongalongype().toUpperCase()) {
 		case ConfigConstant.M_ADD:
@@ -101,11 +104,11 @@ public class IndexServiceImpl implements IndexService {
 			this.deleteIndex(path, indexs);
 			break;
 		default:
-			throw new BusinessException("未传入正确的maintainType参数");
+			throw new BusinessException("未传入正确的malongalongype参数");
 		}
 
 		// 如果要进行索引同步
-		if (syn) {
+		if (syn && nettyConfig.isSyned()) {
 			// 进行索引同步操作,因为rpc发起的请求不可以回滚撤回，所以该操作必须放在本地索引已经完成写入之后
 			sendIndexService.sendIndex(JSON.toJSONString(maintainIndexQuery));
 		}
@@ -119,14 +122,10 @@ public class IndexServiceImpl implements IndexService {
 	 * @return 对应的文件夹路径 2018年10月9日
 	 */
 	private String getPathByContentType(String contentType) {
-		switch (contentType.toUpperCase()) {
-		case ConfigConstant.C_ADDRESS:
-			return indexDir.getAddressDir();
-		case ConfigConstant.C_RESOURCE:
-			return indexDir.getResourceDir();
-		default:
-			throw new BusinessException("未传入正确的contentType参数");
+		if (StringUtils.blanked((contentType))) {
+			throw new BusinessException("contentType不能为空");
 		}
+		return indexDir.getDir() + "/" + contentType;
 	}
 
 	/**
@@ -136,24 +135,24 @@ public class IndexServiceImpl implements IndexService {
 	 * @param indexs 要添加的索引list对象
 	 * @throws IOException io流异常
 	 */
-	private void updateIndex(String path, List<IndexEntity> indexs) throws IOException {
+	private void updateIndex(String path, List<JSONObject> indexs) throws IOException {
 		Directory directory = null;
 		IndexWriter indexWriter = null;
 		directory = writerAndDirManager.getDirectory(path);
 		indexWriter = writerAndDirManager.getIndexWriter(directory);
 
 		// 遍历要更新的索引
-		for (IndexEntity maintainIndexEntity : indexs) {
+		for (JSONObject obj : indexs) {
 			// 判断id是否非空
-			String id = maintainIndexEntity.getId();
-			if (id == null || id.isEmpty()) {
+			String id = obj.getString("id");
+			if (StringUtils.blanked((id))) {
 				throw new BusinessException("传入的id参数中有空值");
 			}
 			// 查询索引，如果存在则更新，不存在则返回异常
 			Term query = this.findIndexById(id, directory);
 			// 如果存在 更新
 			if (query != null) {
-				indexWriter.updateDocument(query, this.addDoc(maintainIndexEntity));
+				indexWriter.updateDocument(query, this.addDoc(obj));
 			} else {
 				throw new BusinessException("未查询到id为" + id + "的索引，无法进行更新操作");
 			}
@@ -169,14 +168,14 @@ public class IndexServiceImpl implements IndexService {
 	 * @param indexs 要添加的索引list对象
 	 * @throws IOException io流异常
 	 */
-	private void deleteIndex(String path, List<IndexEntity> indexs) throws IOException {
+	private void deleteIndex(String path, List<JSONObject> indexs) throws IOException {
 		Directory directory = null;
 		IndexWriter indexWriter = null;
 		directory = writerAndDirManager.getDirectory(path);
 		indexWriter = writerAndDirManager.getIndexWriter(directory);
-		for (IndexEntity maintainIndexEntity : indexs) {
+		for (JSONObject obj : indexs) {
 			// 如果id为空 则继续循环
-			String id = maintainIndexEntity.getId();
+			String id = obj.getString("id");
 			if (id == null || id.isEmpty()) {
 				continue;
 			}
@@ -188,7 +187,7 @@ public class IndexServiceImpl implements IndexService {
 					indexWriter.deleteDocuments(query);
 				}
 			} catch (IOException e1) {
-				logger.error("添加操作时查询索引抛出异常", e1);
+				logger.error("删除操作时查询索引抛出异常", e1);
 				continue;
 			}
 		}
@@ -203,7 +202,7 @@ public class IndexServiceImpl implements IndexService {
 	 * @param indexs 要添加的索引list对象
 	 * @throws IOException io流异常
 	 */
-	private void addIndex(String path, List<IndexEntity> indexs) throws IOException {
+	private void addIndex(String path, List<JSONObject> indexs) throws IOException {
 		Directory targetDirectory = null;
 		IndexWriter targetWriter = null;
 		// 获取临时和目标文件夹和indexWriter
@@ -211,10 +210,10 @@ public class IndexServiceImpl implements IndexService {
 		targetWriter = writerAndDirManager.getIndexWriter(targetDirectory);
 		Set<String> idsSet = new HashSet<>();
 		// 对传入的索引进行循环添加
-		for (IndexEntity maintainIndexEntity : indexs) {
+		for (JSONObject obj : indexs) {
 			// 添加前先判断id非空
-			String id = maintainIndexEntity.getId();
-			if (id == null || id.isEmpty()) {
+			String id = obj.getString("id");
+			if (StringUtils.blanked((id))) {
 				throw new BusinessException("传入的id为空");
 			}
 			if (idsSet.contains(id)) {
@@ -224,47 +223,12 @@ public class IndexServiceImpl implements IndexService {
 			// 去目标文件夹下按照id查询，如果已有该索引则不能添加
 			Term query = this.findIndexById(id, targetDirectory);
 			if (query != null) {
-				throw new BusinessException("已有该id的索引，无法插入");
+				throw new BusinessException("已有id为"+id+"的索引，无法插入");
 			}
 
-			targetWriter.addDocument(this.addDoc(maintainIndexEntity));
+			targetWriter.addDocument(this.addDoc(obj));
 			// 将已存入temp文件夹的id存入set中，借此来判断传入的id中是否有重复的
 			idsSet.add(id);
-		}
-
-		targetWriter.flush();
-		targetWriter.commit();
-	}
-
-	/**
-	 * 更新或者添加索引
-	 * 
-	 * @param path   文件夹路径
-	 * @param indexs 要更新或者添加的索引list
-	 * @throws IOException
-	 */
-	private void addOrUpdate(String path, List<IndexEntity> indexs) throws IOException {
-		Directory targetDirectory = null;
-		IndexWriter targetWriter = null;
-		// 获取临时和目标文件夹和indexWriter
-		targetDirectory = writerAndDirManager.getDirectory(path);
-		targetWriter = writerAndDirManager.getIndexWriter(targetDirectory);
-		// 对传入的索引进行循环添加
-		for (IndexEntity maintainIndexEntity : indexs) {
-			// 添加前先判断id非空
-			String id = maintainIndexEntity.getId();
-			if (id == null || id.isEmpty()) {
-				continue;
-			}
-
-			// 去目标文件夹下按照id查询，如果已有该索引则进行更新操作
-			Term query = this.findIndexById(id, targetDirectory);
-			if (query != null) {
-				targetWriter.updateDocument(query, this.addDoc(maintainIndexEntity));
-				continue;
-			}
-			// 没查到就添加
-			targetWriter.addDocument(this.addDoc(maintainIndexEntity));
 		}
 
 		targetWriter.flush();
@@ -312,20 +276,25 @@ public class IndexServiceImpl implements IndexService {
 	}
 
 	/**
-	 * 将实体bean映射到文档中
+	 * 将JSON映射到文档中
 	 * 
 	 * @param maintainIndexEntity 索引实体类对象
 	 * @return 添加索引的Document
 	 */
-	private Document addDoc(IndexEntity maintainIndexEntity) {
+	private Document addDoc(JSONObject obj) {
 		Document document = new Document();
-		document.add(new StringField("id", maintainIndexEntity.getId(), Field.Store.YES));
-		document.add(
-				new TextField("aliasName", this.returnNullStr(maintainIndexEntity.getAliasName()), Field.Store.YES));
-		document.add(new TextField("code", this.returnNullStr(maintainIndexEntity.getCode()), Field.Store.YES));
-		document.add(new TextField("fullSampleSpell", this.returnNullStr(maintainIndexEntity.getFullSampleSpell()),
-				Field.Store.YES));
-		document.add(new TextField("name", this.returnNullStr(maintainIndexEntity.getName()), Field.Store.YES));
+		Set<Entry<String, Object>> entrySet = obj.entrySet();
+		Iterator<Entry<String, Object>> iterator = entrySet.iterator();
+		while (iterator.hasNext()) {
+			Entry<String, Object> next = iterator.next();
+			String key = next.getKey();
+			String value = this.returnNullStr(next.getValue());
+			if ("id".equals(key)) {
+				document.add(new StringField(key, value, Field.Store.YES));
+			} else {
+				document.add(new TextField(key, value, Field.Store.YES));
+			}
+		}
 		return document;
 	}
 
@@ -335,8 +304,8 @@ public class IndexServiceImpl implements IndexService {
 	 * @param str
 	 * @return 转换结果
 	 */
-	private String returnNullStr(String str) {
-		return str == null ? "" : str;
+	private String returnNullStr(Object str) {
+		return str == null ? "" : String.valueOf(str);
 	}
 
 	/**
@@ -350,13 +319,13 @@ public class IndexServiceImpl implements IndexService {
 	 * @see IndexService#selectIndexDocmentByConetent(IndexSearchQuery)
 	 */
 	@Override
-	public List<IndexEntity> selectIndexDocmentByConetent(IndexSearchQuery indexSearchQuery)
+	public List<Map<String, String>> selectIndexDocmentByConetent(IndexSearchQuery indexSearchQuery)
 			throws IOException, ParseException {
 		// 先解析path的路径地址
 		String path = this.getPathByContentType(indexSearchQuery.getContentType().toUpperCase());
 
-		// 制定搜索的字段
-		String[] filedStr = new String[] { "code", "name", "aliasName", "fullSampleSpell" };
+		// 拿到前端传入的字段
+		String[] filedStr = indexSearchQuery.getQueryParser();
 		// 查询对象
 		QueryParser queryParser = new MultiFieldQueryParser(filedStr, writerAndDirManager.getAnalyzer());
 		// 用户输入内容
@@ -411,33 +380,20 @@ public class IndexServiceImpl implements IndexService {
 	 * @param listDocuments 返回MaintainIndexEntity的list
 	 * @return 返回IndexEntity的list
 	 */
-	private List<IndexEntity> getIndexByDocuments(List<Document> listDocuments) {
-		List<IndexEntity> list = new ArrayList<>();
+	private List<Map<String,String>> getIndexByDocuments(List<Document> listDocuments) {
+		List<Map<String,String>> list = new ArrayList<>();
 		for (Document document : listDocuments) {
-			IndexEntity maintainIndexEntity = new IndexEntity();
-			maintainIndexEntity.setName(document.get("name"));
-			maintainIndexEntity.setCode(document.get("code"));
-			maintainIndexEntity.setAliasName(document.get("aliasName"));
-			maintainIndexEntity.setFullSampleSpell(document.get("fullSampleSpell"));
-			maintainIndexEntity.setId(document.get("id"));
-			list.add(maintainIndexEntity);
+			Iterator<IndexableField> iterator = document.iterator();
+			Map<String,String> map = new HashMap<String, String>();
+			while (iterator.hasNext()) {
+				IndexableField next = iterator.next();
+				String key = next.name();
+				String value = next.stringValue();
+				map.put(key, value);
+			}
+			list.add(map);
 		}
-
 		return list;
 	}
 
-	/**
-	 * @see IndexService#batchmaintainIndex(IndexBatchQuery)
-	 */
-	@Override
-	public void batchmaintainIndex(IndexQuery maintainIndexQuery) {
-		// 得到资源路径
-		String path = this.getPathByContentType(maintainIndexQuery.getContentType().toUpperCase());
-		List<IndexEntity> addOrUpdateIndexs = maintainIndexQuery.getIndexs();
-		try {
-			this.addOrUpdate(path, addOrUpdateIndexs);
-		} catch (IOException e) {
-			logger.error("批量更新或者添加时产生io流错误", e);
-		}
-	}
 }

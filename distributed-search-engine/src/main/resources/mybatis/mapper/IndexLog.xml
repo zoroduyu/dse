@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.duy.dse.dao.IndexLogDao">
+	<resultMap id="BaseResultMap"
+		type="com.duy.dse.entity.IndexLogEntity">
+		<result column="IP" property="ip" jdbcType="VARCHAR" />
+		<result column="MSG" property="msg" jdbcType="VARCHAR" />
+		<result column="CREATE_TIME" property="createTime"
+			jdbcType="TIMESTAMP" />
+		<result column="STATUS" property="status" jdbcType="DECIMAL" />
+	</resultMap>
+	<sql id="Base_Column_List">
+		IP,MSG
+	</sql>
+
+	<delete id="deleteConfirmLog">
+		delete from T_INDEX_LOG where ip = #{ip} and msg = #{msg} and status = 1
+	</delete>
+
+	<insert id="bathInsertLog">
+		insert into T_INDEX_LOG (ip,msg,status) values 
+		<foreach collection="list" separator="," item="log">
+			(#{log.ip},#{log.msg},#{log.status})
+		</foreach>
+	</insert>
+	
+	<select id="selectCommit"  resultMap="BaseResultMap" parameterType="com.duy.dse.query.IndexLogQuery">
+		select <include refid="Base_Column_List"/> from T_INDEX_LOG where 1=1 
+		<if test="ip != null and ip != '' ">
+			and ip = #{ip}
+		</if>
+		<if test="status != null">
+			and status = #{status}
+		</if>
+		order by create_time asc
+		limit #{pageNo},#{pageSize}
+	</select>
+
+</mapper>

@@ -80,6 +80,14 @@ public class WriterAndDirManager {
 	}
 
 	/**
+	 * 得到writerMap
+	 * @return
+	 */
+	public Map<Directory, IndexWriter> getWriterMap() {
+		return writerMap;
+	}
+
+	/**
 	 * 返回分词器
 	 * @return
 	 */

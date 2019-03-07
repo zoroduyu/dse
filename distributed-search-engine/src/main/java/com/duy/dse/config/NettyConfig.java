@@ -13,8 +13,17 @@ public class NettyConfig {
     
     private String[] ips;
     
+    private boolean syned;
+    
+    public boolean isSyned() {
+		return syned;
+	}
 
-    public String[] getIps() {
+	public void setSyned(boolean syned) {
+		this.syned = syned;
+	}
+
+	public String[] getIps() {
 		return ips;
 	}
 

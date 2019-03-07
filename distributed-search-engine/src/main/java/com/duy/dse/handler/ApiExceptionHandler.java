@@ -94,6 +94,6 @@ public class ApiExceptionHandler {
     @ResponseBody
     public ResponseVO handle(Exception e) {
         LOGGER.error("异常处理", e);
-        return ResponseVO.build(SystemCode.E_ERROR, "系统异常，请联系关联员", null);
+        return ResponseVO.build(SystemCode.E_ERROR, "系统异常，请联系管理员", null);
     }
 }

@@ -11,32 +11,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class IndexDirEntity {
 
-	@Value("${contentType.addressDir}")
-	private String addressDir;
 	
-	@Value("${contentType.resourceDir}")
-	private String resourceDir;
-	
-	public String getAddressDir() {
-		return addressDir;
+	@Value("${contentType.dir}")
+	private String dir;
+
+	public String getDir() {
+		return dir;
 	}
 
-	public void setAddressDir(String addressDir) {
-		this.addressDir = addressDir;
-	}
-
-	public String getResourceDir() {
-		return resourceDir;
-	}
-
-	public void setResourceDir(String resourceDir) {
-		this.resourceDir = resourceDir;
+	public void setDir(String dir) {
+		this.dir = dir;
 	}
 
 	@Override
 	public String toString() {
-		return "IndexDirEntity [addressDir=" + addressDir + ", resourceDir=" + resourceDir + "]";
+		return "IndexDirEntity [dir=" + dir + "]";
 	}
-
 	
 }

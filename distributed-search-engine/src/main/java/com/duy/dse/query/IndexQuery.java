@@ -2,7 +2,7 @@ package com.duy.dse.query;
 
 import java.util.List;
 
-import com.duy.dse.entity.IndexEntity;
+import com.alibaba.fastjson.JSONObject;
 
 /**
  * 索引维护接口查询的实体类
@@ -24,7 +24,7 @@ public class IndexQuery {
 	/**
 	 * 索引内容
 	 */
-	private List<IndexEntity> indexs;
+	private List<JSONObject> indexs;
 
 	public String getContentType() {
 		return contentType;
@@ -44,12 +44,18 @@ public class IndexQuery {
 		this.malongalongype = malongalongype;
 	}
 
-	public List<IndexEntity> getIndexs() {
+	public List<JSONObject> getIndexs() {
 		return indexs;
 	}
 
-	public void setIndexs(List<IndexEntity> indexs) {
+	public void setIndexs(List<JSONObject> indexs) {
 		this.indexs = indexs;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "IndexQuery [contentType=" + contentType + ", malongalongype=" + malongalongype + ", indexs=" + indexs
+				+ "]";
+	}
+
 }

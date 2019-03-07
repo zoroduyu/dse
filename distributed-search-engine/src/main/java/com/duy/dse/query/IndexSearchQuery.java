@@ -1,10 +1,13 @@
 package com.duy.dse.query;
 
+import io.swagger.annotations.ApiModel;
+
 /**
  * Auto-generated: 2018-09-17 21:5:41
  * 索引搜索查询实体类
  * @author duyu
  */
+@ApiModel
 public class IndexSearchQuery {
 
 	/**
@@ -20,6 +23,18 @@ public class IndexSearchQuery {
 	 */
     private Integer rows = 20;
     
+    /**
+     * 查询的key值字段，数组
+     */
+    private String[] queryParser;
+    
+    
+	public String[] getQueryParser() {
+		return queryParser;
+	}
+	public void setQueryParser(String[] queryParser) {
+		this.queryParser = queryParser;
+	}
 	public String getContentType() {
 		return contentType;
 	}

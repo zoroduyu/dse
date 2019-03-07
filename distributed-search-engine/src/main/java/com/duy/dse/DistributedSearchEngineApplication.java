@@ -18,7 +18,7 @@ import com.netflix.discovery.shared.Application;
 @EnableScheduling
 @SpringBootApplication
 @EnableEurekaClient
-@MapperScan(basePackages = { "com.tydic.oms.rsc.dao" })
+@MapperScan(basePackages = { "com.duy.dse.dao" })
 public class DistributedSearchEngineApplication extends SpringBootServletInitializer implements CommandLineRunner {
 
 	@Autowired

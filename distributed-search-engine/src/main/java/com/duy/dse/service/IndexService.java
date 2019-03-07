@@ -2,10 +2,10 @@ package com.duy.dse.service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.lucene.queryparser.classic.ParseException;
 
-import com.duy.dse.entity.IndexEntity;
 import com.duy.dse.query.IndexQuery;
 import com.duy.dse.query.IndexSearchQuery;
 
@@ -36,15 +36,6 @@ public interface IndexService {
 	 * @throws IOException io异常
 	 * @throws ParseException 转换异常
 	 */
-	List<IndexEntity> selectIndexDocmentByConetent(IndexSearchQuery indexSearchQuery) throws IOException, ParseException;
+	List<Map<String, String>> selectIndexDocmentByConetent(IndexSearchQuery indexSearchQuery) throws IOException, ParseException;
 
-	/**
-	 * 批量对索引进行添加，更新和删除的方法
-	 *  @author duyu
-	 *	@param maintainIndexQuery 索引维护接口查询的实体类
-	 *	@throws IOException io流异常
-	 *  2018年10月9日
-	 */
-	void batchmaintainIndex(IndexQuery maintainIndexQuery);
-	
 }
